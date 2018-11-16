@@ -15,15 +15,12 @@ def show_plt(st=None, ed=None, database='mongodb'):
     else:
         data = hsic.sql_data(st, ed)
     cou = []
-    hp = []
-    _m60 = 0
-    zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', '60均线上/下方(1/0)', 'K线数量', '涨/跌趋势(+/-)', '此波幅度', 'macd绿区', 'macd红区', '异动小于-1.5倍', '异动大于1.5倍')]
+    zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', '60均线上/下方(1/0)', 'K线数量',
+            '涨/跌趋势(+/-)', '此波幅度', 'macd绿区', 'macd红区', '异动小于-1.5倍', '异动大于1.5倍')]
     dc2 = [i[4] for i in data]
     dc = []
     yddy, ydxy = 0, 0  # 异动
     _vol = 0  # 成交量
-
-    is_bs = lambda x, x1, x2: [xx for xx in x if xx > x1] if x2 == '>' else [xx for xx in x if xx < x1]
 
     def get_cou():
         st = cou[-2][0]
@@ -106,14 +103,7 @@ def show_plt(st=None, ed=None, database='mongodb'):
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
                     _vol = 0
-        else:
-            _m60 = round(c)
 
-
-    with open('a.csv', 'w') as f:
-        for i in zts:
-            f.write(','.join([str(j) for j in i]))
-            f.write('\n')
     return zts
 
 
@@ -227,7 +217,15 @@ var option = {
                 }
             }
             for(var i=0;i<paramnames.length;i++){
-                htmls += paramnames[i] + ': ' + zts[_dt][i] +'  ';
+                var K=paramnames[i],V=zts[_dt][i];
+                /*if(V==0 and K.indexOf('数量')<0){
+                    htmls += "<span style='color:green;'>"+ K + ": " + V +"</span>  ";
+                }else if(V==1 and K.indexOf('数量')<0){
+                    htmls += "<span style='color:red;'>"+ K + ": " + V +"</span>  ";
+                }else{
+                    htmls += K + ': ' + V +'  ';
+                }*/
+                htmls += K + ': ' + V +'  ';
                 if(i%8==0 && i>0){ htmls += "</br>"; }
             }
             $("#show_hq_message").html(htmls);
@@ -452,25 +450,32 @@ def get_macd(data):
             dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
             dc[i]['dea'] = dc[i - 1]['dea'] * (phyd - 2) / phyd + dc[i]['diff'] * 2 / phyd
             dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
-        data2.append([d, o, c, l, h, v, 0, dc[i]['macd'], dc[i]['diff'], dc[i]['dea']])
+        data2.append([d, o, c, l, h, v, 0, round(dc[i]['macd'], 2), round(dc[i]['diff'], 2), round(dc[i]['dea'], 2)])
     return data2
 
 
-
-
-if __name__ == '__main__':
-    ed = datetime.datetime.now()+datetime.timedelta(days=1)
-    sd = str(ed-datetime.timedelta(days=10))[:10]
+def main():
+    # 起止日期设置
+    ed = datetime.datetime.now() + datetime.timedelta(days=1)
+    sd = str(ed - datetime.timedelta(days=20))[:10]
     ed = str(ed)[:10]
-    zts = show_plt(sd,ed,database='sql')
-    d = [[i[0],i[2],i[5],i[4],i[3],i[6]] for i in zts[1:]]
-    d = str(get_macd(d))
 
-    parhead = str(list(zts[0]))
+    zts = show_plt(sd, ed, database='sql')
 
-    zts = str({i[0]:list(i) for i in zts[1:]})
+    # with open('a.csv', 'w') as f:
+    #     for i in zts:
+    #         f.write(','.join([str(j) for j in i]))
+    #         f.write('\n')
 
-    with open('qj.html','w', encoding='utf-8') as f:
+    d = [[i[0], i[2], i[5], i[4], i[3], i[6]] for i in zts[1:]]
+    d = str(get_macd(d))  # 计算Macd
+
+    parhead = str(list(zts[0]))  # 字段名称
+
+    zts = str({i[0]: list(i) for i in zts[1:]})
+
+    # 写入HTML
+    with open('qj.html', 'w', encoding='utf-8') as f:
         f.write(head)
         f.write(d)
         f.write(tail)
@@ -478,5 +483,10 @@ if __name__ == '__main__':
         f.write(tail2)
         f.write(parhead)
         f.write(tail3)
-    
+
+    # 打开HTML文件
     os.system('start qj.html')
+
+
+if __name__ == '__main__':
+    main()
