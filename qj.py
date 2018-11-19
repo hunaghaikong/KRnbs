@@ -3,9 +3,16 @@ import datetime
 
 import hsic
 
+# interval
 
-
-def show_plt(st=None, ed=None, database='mongodb'):
+def interval_ma60(st=None, ed=None, database='mongodb'):
+    """
+    以60均线分波
+    :param st: 开始日期
+    :param ed: 终止日期
+    :param database: 数据库类型
+    :return: 计算结果列表
+    """
     short, long, phyd = 12, 26, 9
     if st is None or ed is None:
         st = str(datetime.datetime.now()-datetime.timedelta(days=1))[:10]
@@ -36,7 +43,7 @@ def show_plt(st=None, ed=None, database='mongodb'):
         _macdg = len([_m for _m in range(len(_dc)) if (_m == 0 and _dc[_m]['macd'] < 0) or (_dc[_m]['macd'] < 0 and _dc[_m - 1]['macd'] > 0)])
         _macdr = len([_m for _m in range(len(_dc)) if (_m == 0 and _dc[_m]['macd'] > 0) or (_dc[_m]['macd'] > 0 and _dc[_m - 1]['macd'] < 0)])
 
-        return (str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _macdg, _macdr, yddy, ydxy)
+        return (str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _macdg, _macdr, ydxy, yddy)
 
     for i, (d, o, h, l, c, v) in enumerate(data):
         dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
@@ -69,8 +76,8 @@ def show_plt(st=None, ed=None, database='mongodb'):
             ma = 60
             std_pj = sum(dc2[i - j] - data[i - j][1] for j in range(ma)) / ma
             dc[i]['var'] = sum((dc2[i - j] - data[i - j][1] - std_pj) ** 2 for j in range(ma)) / ma  # 方差 i-ma+1,i+1
-            dc[i]['std'] = float(dc[i]['var'] ** 0.5)  # 标准差
-            price = dc2[i] - data[i][1]
+            dc[i]['std'] = dc[i]['var'] ** 0.5  # 标准差
+            price =  c - o
             dc[i]['mul'] = _yd = round(price / dc[i]['std'], 2)
             if _yd > 1.5:
                 yddy += 1
@@ -85,12 +92,12 @@ def show_plt(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 0))
-                elif data[i][0].day != data[i - 1][0].day:
+                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15'):
                     cou.append((i, 0))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
                     _vol = 0
-            elif c < _m60:
+            else:
                 if cou and cou[-1][1] != 1:  # and not is_bs(dc[i-10:i+1],_m60,'>'):
                     cou.append((i, 1))
                     zts.append(get_cou())
@@ -98,12 +105,379 @@ def show_plt(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 1))
-                elif data[i][0].day != data[i - 1][0].day:
+                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15'):
                     cou.append((i, 1))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
                     _vol = 0
 
+    return zts
+
+
+def interval_macd(st=None, ed=None, database='mongodb'):
+    """
+        以 MACD 分波
+        :param st: 开始日期
+        :param ed: 终止日期
+        :param database: 数据库类型
+        :return: 计算结果列表
+        """
+    short, long, phyd = 12, 26, 9
+    if st is None or ed is None:
+        st = str(datetime.datetime.now()-datetime.timedelta(days=1))[:10]
+        ed = str(datetime.datetime.now()+datetime.timedelta(days=1))[:10]
+    if database == 'mongodb':
+        data = hsic.mongo_data(st, ed)
+    else:
+        data = hsic.sql_data(st, ed)
+    cou = []
+    zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', 'macd红/绿区(1/0)', 'K线数量',
+            '涨/跌趋势(+/-)', '此波幅度', '60均线下方', '60均线上方', '异动小于-1.5倍', '异动大于1.5倍')]
+    dc2 = [i[4] for i in data]
+    dc = []
+    yddy, ydxy = 0, 0  # 异动
+    _vol = 0  # 成交量
+    _m60 = 0  # 60均线
+
+    def get_cou():
+        st = cou[-2][0]
+        ed = cou[-1][0]
+        _O = dc2[st]
+        _H = max(dc2[st:ed + 1])
+        _L = min(dc2[st:ed + 1])
+        _C = dc2[ed]
+        jc = _H - _L
+        zt = '+' if dc2[st:ed + 1].index(_H) > int((ed - st) / 2) else '-'
+        # if 1: #jc > 50:
+        _dc = dc[st:ed + 1]
+        # _ma60g = len([_m for _m in range(len(_dc)) if _C <= _m60])
+        _ma60g = len([_m for _m in range(len(_dc)) if (_m == 0 and _C <= _dc[_m]['ma60']) or (_C <= _dc[_m]['ma60'] and dc2[st] > _dc[_m - 1]['ma60'])])
+        _ma60r = len([_m for _m in range(len(_dc)) if (_m == 0 and _C > _dc[_m]['ma60']) or (_C > _dc[_m]['ma60'] and dc2[st] <= _dc[_m - 1]['ma60'])])
+
+        return (str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _ma60g, _ma60r, ydxy, yddy)
+
+    macd = None
+    for i, (d, o, h, l, c, v) in enumerate(data):
+        dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
+                   'var': 0,  # 方差
+                   'std': 0,  # 标准差
+                   'mul': 0,  # 异动
+                   'ma60': 0,  # 60均线
+                   })
+        if i == 1:
+            ac = dc2[i - 1]
+            this_c = dc2[i]
+            dc[i]['ema_short'] = ac + (this_c - ac) * 2 / short
+            dc[i]['ema_long'] = ac + (this_c - ac) * 2 / long
+            # dc[i]['ema_short'] = sum([(short-j)*da[i-j][4] for j in range(short)])/(3*short)
+            # dc[i]['ema_long'] = sum([(long-j)*da[i-j][4] for j in range(long)])/(3*long)
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+            # co = 1 if dc[i]['macd'] >= 0 else 0
+        elif i > 1:
+            n_c = dc2[i]
+            dc[i]['ema_short'] = dc[i - 1]['ema_short'] * (short - 2) / short + n_c * 2 / short
+            dc[i]['ema_long'] = dc[i - 1]['ema_long'] * (long - 2) / long + n_c * 2 / long
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i - 1]['dea'] * (phyd - 2) / phyd + dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+
+        dc[i]['ma60'] = _m60 = round(sum(j for j in dc2[i - 59:i + 1]) / 60) if i >= 60 else round(sum(j for j in dc2[0:i + 1]) / 60)
+
+
+        ma = 60
+        std_pj = sum(dc2[i - j] - data[i - j][1] for j in range(ma)) / ma
+        dc[i]['var'] = sum((dc2[i - j] - data[i - j][1] - std_pj) ** 2 for j in range(ma)) / ma  # 方差 i-ma+1,i+1
+        dc[i]['std'] = dc[i]['var'] ** 0.5  # 标准差
+        price =  c - o
+        dc[i]['mul'] = _yd = round(price / dc[i]['std'], 2)
+        if _yd > 1.5:
+            yddy += 1
+        elif _yd < -1.5:
+            ydxy += 1
+        _vol += v
+        _macd = 1 if dc[i]['macd'] > 0 else 0
+        judge = data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15')
+        if macd != _macd or judge:
+            macd = _macd
+            if macd > 0:
+                if cou and cou[-1][1] != 0:  # and not is_bs(dc[i-10:i+1],_m60,'<'):
+                    cou.append((i, 0))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+                elif not cou:
+                    cou.append((i, 0))
+                elif judge:
+                    cou.append((i, 0))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+            else:
+                if cou and cou[-1][1] != 1:  # and not is_bs(dc[i-10:i+1],_m60,'>'):
+                    cou.append((i, 1))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+                elif not cou:
+                    cou.append((i, 1))
+                elif judge:
+                    cou.append((i, 1))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+
+    return zts
+
+
+def interval_change(st=None, ed=None, database='mongodb'):
+    """
+        以异动分波
+        :param st: 开始日期
+        :param ed: 终止日期
+        :param database: 数据库类型
+        :return: 计算结果列表
+        """
+    short, long, phyd = 12, 26, 9
+    if st is None or ed is None:
+        st = str(datetime.datetime.now() - datetime.timedelta(days=1))[:10]
+        ed = str(datetime.datetime.now() + datetime.timedelta(days=1))[:10]
+    if database == 'mongodb':
+        data = hsic.mongo_data(st, ed)
+    else:
+        data = hsic.sql_data(st, ed)
+    cou = []
+    zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', '异动正/反(1/0)', 'K线数量',  # 60均线上/下方(1/0)
+            '涨/跌趋势(+/-)', '此波幅度', 'macd绿区', 'macd红区', '异动小于-1.5倍', '异动大于1.5倍')]
+    dc2 = [i[4] for i in data]
+    dc = []
+    yddy, ydxy = 0, 0  # 异动
+    _vol = 0  # 成交量
+
+    def get_cou():
+        st = cou[-2][0]
+        ed = cou[-1][0]
+        _O = dc2[st]
+        _H = max(dc2[st:ed + 1])
+        _L = min(dc2[st:ed + 1])
+        _C = dc2[ed]
+        jc = _H - _L
+        zt = '+' if dc2[st:ed + 1].index(_H) > int((ed - st) / 2) else '-'
+        # if 1: #jc > 50:
+        _dc = dc[st:ed + 1]
+        _macdg = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _dc[_m]['macd'] < 0) or (_dc[_m]['macd'] < 0 and _dc[_m - 1]['macd'] > 0)])
+        _macdr = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _dc[_m]['macd'] > 0) or (_dc[_m]['macd'] > 0 and _dc[_m - 1]['macd'] < 0)])
+
+        return (
+        str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _macdg, _macdr, ydxy,
+        yddy)
+
+    for i, (d, o, h, l, c, v) in enumerate(data):
+        dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
+                   'var': 0,  # 方差
+                   'std': 0,  # 标准差
+                   'mul': 0,  # 异动
+                   })
+        if i == 1:
+            ac = dc2[i - 1]
+            this_c = dc2[i]
+            dc[i]['ema_short'] = ac + (this_c - ac) * 2 / short
+            dc[i]['ema_long'] = ac + (this_c - ac) * 2 / long
+            # dc[i]['ema_short'] = sum([(short-j)*da[i-j][4] for j in range(short)])/(3*short)
+            # dc[i]['ema_long'] = sum([(long-j)*da[i-j][4] for j in range(long)])/(3*long)
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+            # co = 1 if dc[i]['macd'] >= 0 else 0
+        elif i > 1:
+            n_c = dc2[i]
+            dc[i]['ema_short'] = dc[i - 1]['ema_short'] * (short - 2) / short + n_c * 2 / short
+            dc[i]['ema_long'] = dc[i - 1]['ema_long'] * (long - 2) / long + n_c * 2 / long
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i - 1]['dea'] * (phyd - 2) / phyd + dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+
+        if i >= 60:
+            # _m60 = round(sum(j for j in dc2[i - 59:i + 1]) / 60)
+
+            ma = 60
+            std_pj = sum(dc2[i - j] - data[i - j][1] for j in range(ma)) / ma
+            dc[i]['var'] = sum((dc2[i - j] - data[i - j][1] - std_pj) ** 2 for j in range(ma)) / ma  # 方差 i-ma+1,i+1
+            dc[i]['std'] = dc[i]['var'] ** 0.5  # 标准差
+            price = c - o
+            dc[i]['mul'] = _yd = round(price / dc[i]['std'], 2)
+            if _yd > 1.5:
+                yddy += 1
+            elif _yd < -1.5:
+                ydxy += 1
+            _vol += v
+            if _yd > 1.5:
+                if cou and cou[-1][1] != 0:  # and not is_bs(dc[i-10:i+1],_m60,'<'):
+                    cou.append((i, 0))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+                elif not cou:
+                    cou.append((i, 0))
+                elif data[i][0].day != data[i - 1][0].day or (
+                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                    cou.append((i, 0))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+            elif _yd < -1.5:
+                if cou and cou[-1][1] != 1:  # and not is_bs(dc[i-10:i+1],_m60,'>'):
+                    cou.append((i, 1))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+                elif not cou:
+                    cou.append((i, 1))
+                elif data[i][0].day != data[i - 1][0].day or (
+                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                    cou.append((i, 1))
+                    zts.append(get_cou())
+                    yddy, ydxy = 0, 0
+                    _vol = 0
+
+    return zts
+
+
+def interval_yi(st=None, ed=None, database='mongodb'):
+    """
+        以阴阳线分波
+        :param st: 开始日期
+        :param ed: 终止日期
+        :param database: 数据库类型
+        :return: 计算结果列表
+        """
+    short, long, phyd = 12, 26, 9
+    if st is None or ed is None:
+        st = str(datetime.datetime.now() - datetime.timedelta(days=1))[:10]
+        ed = str(datetime.datetime.now() + datetime.timedelta(days=1))[:10]
+    if database == 'mongodb':
+        data = hsic.mongo_data(st, ed)
+    else:
+        data = hsic.sql_data(st, ed)
+    data2 = []
+    _d,_o,_h,_l,_v = None,0,0,100**5,0
+    for i, (d, o, h, l, c, v) in enumerate(data):
+        if _d is None:
+            _d = d
+            _o = o
+        _h = h if h>_h else _h
+        _l = l if l<_l else _l
+        _v += v
+        data_i = data[i-1]
+        if i>0 and ((c-o>0 and data_i[4]-data_i[1]<=0) or (c-o<=0 and data_i[4]-data_i[1]>0)):
+            data2.append((_d,_o,_h,_l,c,_v))
+            _d, _o, _h, _l, _v = None, 0, 0, 100 ** 5, 0
+    data = data2
+    cou = []
+    zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', '60均线下方', '60均线上方',  # 60均线上/下方(1/0)
+            '涨/跌趋势(+/-)', '此波幅度', 'macd绿区', 'macd红区', '异动小于-1.5倍', '异动大于1.5倍')]
+    dc2 = [i[4] for i in data]
+    dc = []
+    yddy, ydxy = 0, 0  # 异动
+    _vol = 0  # 成交量
+
+    def get_cou():
+        st = cou[-2][0]
+        ed = cou[-1][0]
+        _O = dc2[st]
+        _H = max(dc2[st:ed + 1])
+        _L = min(dc2[st:ed + 1])
+        _C = dc2[ed]
+        jc = _H - _L
+        zt = '+' if dc2[st:ed + 1].index(_H) > int((ed - st) / 2) else '-'
+        # if 1: #jc > 50:
+        _dc = dc[st:ed + 1]
+        _ma60g = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _C <= _dc[_m]['ma60']) or (_C <= _dc[_m]['ma60'] and dc2[st] > _dc[_m - 1]['ma60'])])
+        _ma60r = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _C > _dc[_m]['ma60']) or (_C > _dc[_m]['ma60'] and dc2[st] <= _dc[_m - 1]['ma60'])])
+
+        _macdg = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _dc[_m]['macd'] < 0) or (_dc[_m]['macd'] < 0 and _dc[_m - 1]['macd'] > 0)])
+        _macdr = len([_m for _m in range(len(_dc)) if
+                      (_m == 0 and _dc[_m]['macd'] > 0) or (_dc[_m]['macd'] > 0 and _dc[_m - 1]['macd'] < 0)])
+
+        return (
+        str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, _ma60g, _ma60r, zt, jc, _macdg, _macdr, ydxy,
+        yddy)
+
+    for i, (d, o, h, l, c, v) in enumerate(data):
+        dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
+                   'var': 0,  # 方差
+                   'std': 0,  # 标准差
+                   'mul': 0,  # 异动
+                   'ma60': 0,  # 60均线
+                   })
+        if i == 1:
+            ac = dc2[i - 1]
+            this_c = dc2[i]
+            dc[i]['ema_short'] = ac + (this_c - ac) * 2 / short
+            dc[i]['ema_long'] = ac + (this_c - ac) * 2 / long
+            # dc[i]['ema_short'] = sum([(short-j)*da[i-j][4] for j in range(short)])/(3*short)
+            # dc[i]['ema_long'] = sum([(long-j)*da[i-j][4] for j in range(long)])/(3*long)
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+            # co = 1 if dc[i]['macd'] >= 0 else 0
+        elif i > 1:
+            n_c = dc2[i]
+            dc[i]['ema_short'] = dc[i - 1]['ema_short'] * (short - 2) / short + n_c * 2 / short
+            dc[i]['ema_long'] = dc[i - 1]['ema_long'] * (long - 2) / long + n_c * 2 / long
+            dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
+            dc[i]['dea'] = dc[i - 1]['dea'] * (phyd - 2) / phyd + dc[i]['diff'] * 2 / phyd
+            dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
+        dc[i]['ma60'] = _m60 = round(sum(j for j in dc2[i - 59:i + 1]) / 60) if i >= 60 else round(
+            sum(j for j in dc2[0:i + 1]) / 60)
+        price = c - o
+        if i >= 60:
+            # _m60 = round(sum(j for j in dc2[i - 59:i + 1]) / 60)
+            ma = 60
+            std_pj = sum(dc2[i - j] - data[i - j][1] for j in range(ma)) / ma
+            dc[i]['var'] = sum((dc2[i - j] - data[i - j][1] - std_pj) ** 2 for j in range(ma)) / ma  # 方差 i-ma+1,i+1
+            dc[i]['std'] = dc[i]['var'] ** 0.5  # 标准差
+
+            dc[i]['mul'] = _yd = round(price / dc[i]['std'], 2)
+            if _yd > 1.5:
+                yddy += 1
+            elif _yd < -1.5:
+                ydxy += 1
+        _vol += v
+        if price > 0:
+            if cou and cou[-1][1] != 0:  # and not is_bs(dc[i-10:i+1],_m60,'<'):
+                cou.append((i, 0))
+                zts.append(get_cou())
+                yddy, ydxy = 0, 0
+                _vol = 0
+            elif not cou:
+                cou.append((i, 0))
+            elif data[i][0].day != data[i - 1][0].day or (
+                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                cou.append((i, 0))
+                zts.append(get_cou())
+                yddy, ydxy = 0, 0
+                _vol = 0
+        else:
+            if cou and cou[-1][1] != 1:  # and not is_bs(dc[i-10:i+1],_m60,'>'):
+                cou.append((i, 1))
+                zts.append(get_cou())
+                yddy, ydxy = 0, 0
+                _vol = 0
+            elif not cou:
+                cou.append((i, 1))
+            elif data[i][0].day != data[i - 1][0].day or (
+                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                cou.append((i, 1))
+                zts.append(get_cou())
+                yddy, ydxy = 0, 0
+                _vol = 0
     return zts
 
 
@@ -187,7 +561,7 @@ function calculateMA(dayCount) {
 }
 var option = {
   title: {
-      text: 'K线周期图表(以60均线为界)',
+      text: 'K线周期图表',
       left: 0
   },
   tooltip: {
@@ -460,12 +834,12 @@ def main():
     sd = str(ed - datetime.timedelta(days=20))[:10]
     ed = str(ed)[:10]
 
-    zts = show_plt(sd, ed, database='sql')
+    zts = interval_yi(sd, ed, database='sql')
 
-    # with open('a.csv', 'w') as f:
-    #     for i in zts:
-    #         f.write(','.join([str(j) for j in i]))
-    #         f.write('\n')
+    with open('a.csv', 'w') as f:
+        for i in zts:
+            f.write(','.join([str(j) for j in i]))
+            f.write('\n')
 
     d = [[i[0], i[2], i[5], i[4], i[3], i[6]] for i in zts[1:]]
     d = str(get_macd(d))  # 计算Macd
