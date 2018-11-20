@@ -694,7 +694,7 @@ var option = {
       end: 100
   }],
   series: [{
-          name: 'K线周期图表(matols.com)',
+          name: 'K线周期图表',
           type: 'candlestick',
           data: data.datas,
           itemStyle: {
@@ -831,7 +831,7 @@ def get_macd(data):
 def main():
     # 起止日期设置
     ed = datetime.datetime.now() + datetime.timedelta(days=1)
-    sd = str(ed - datetime.timedelta(days=20))[:10]
+    sd = str(ed - datetime.timedelta(days=6))[:10]
     ed = str(ed)[:10]
 
     zts = interval_yi(sd, ed, database='sql')
