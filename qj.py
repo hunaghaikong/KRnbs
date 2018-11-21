@@ -362,20 +362,20 @@ def interval_yi(st=None, ed=None, database='mongodb'):
         data = hsic.mongo_data(st, ed)
     else:
         data = hsic.sql_data(st, ed)
-    data2 = []
-    _d,_o,_h,_l,_v = None,0,0,100**5,0
-    for i, (d, o, h, l, c, v) in enumerate(data):
-        if _d is None:
-            _d = d
-            _o = o
-        _h = h if h>_h else _h
-        _l = l if l<_l else _l
-        _v += v
-        data_i = data[i-1]
-        if i>0 and ((c-o>0 and data_i[4]-data_i[1]<=0) or (c-o<=0 and data_i[4]-data_i[1]>0)):
-            data2.append((_d,_o,_h,_l,c,_v))
-            _d, _o, _h, _l, _v = None, 0, 0, 100 ** 5, 0
-    data = data2
+    # data2 = []
+    # _d,_o,_h,_l,_v = None,0,0,100**5,0
+    # for i, (d, o, h, l, c, v) in enumerate(data):
+    #     if _d is None:
+    #         _d = d
+    #         _o = o
+    #     _h = h if h>_h else _h
+    #     _l = l if l<_l else _l
+    #     _v += v
+    #     data_i = data[i-1]
+    #     if i>0 and ((c-o>0 and data_i[4]-data_i[1]<=0) or (c-o<=0 and data_i[4]-data_i[1]>0)):
+    #         data2.append((_d,_o,_h,_l,c,_v))
+    #         _d, _o, _h, _l, _v = None, 0, 0, 100 ** 5, 0
+    # data = data2
     cou = []
     zts = [('开始时间', '结束时间', '开盘', '最高', '最低', '收盘', '成交量', '60均线下方', '60均线上方',  # 60均线上/下方(1/0)
             '涨/跌趋势(+/-)', '此波幅度', 'macd绿区', 'macd红区', '异动小于-1.5倍', '异动大于1.5倍')]
@@ -834,7 +834,7 @@ def main():
     sd = str(ed - datetime.timedelta(days=6))[:10]
     ed = str(ed)[:10]
 
-    zts = interval_yi(sd, ed, database='sql')
+    zts = interval_ma60(sd, ed, database='sql')
 
     with open('a.csv', 'w') as f:
         for i in zts:
