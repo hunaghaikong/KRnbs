@@ -44,7 +44,7 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
         _macdr = len([_m for _m in range(len(_dc)) if (_m == 0 and _dc[_m]['macd'] > 0) or (_dc[_m]['macd'] > 0 and _dc[_m - 1]['macd'] < 0)])
 
         return (str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _macdg, _macdr, ydxy, yddy)
-
+    lend_ = len(data) - 1
     for i, (d, o, h, l, c, v) in enumerate(data):
         dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
                    'var': 0,  # 方差
@@ -92,7 +92,7 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 0))
-                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15'):
+                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or i == lend_:
                     cou.append((i, 0))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -105,7 +105,7 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 1))
-                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15'):
+                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or i == lend_:
                     cou.append((i, 1))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -157,6 +157,7 @@ def interval_macd(st=None, ed=None, database='mongodb'):
         return (str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _ma60g, _ma60r, ydxy, yddy)
 
     macd = None
+    lend_ = len(data) - 1
     for i, (d, o, h, l, c, v) in enumerate(data):
         dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
                    'var': 0,  # 方差
@@ -198,7 +199,7 @@ def interval_macd(st=None, ed=None, database='mongodb'):
             ydxy += 1
         _vol += v
         _macd = 1 if dc[i]['macd'] > 0 else 0
-        judge = data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15')
+        judge = data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or i == lend_
         if macd != _macd or judge:
             macd = _macd
             if macd > 0:
@@ -274,7 +275,7 @@ def interval_change(st=None, ed=None, database='mongodb'):
         return (
         str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, cou[-1][1], ed - st, zt, jc, _macdg, _macdr, ydxy,
         yddy)
-
+    lend_ = len(data) - 1
     for i, (d, o, h, l, c, v) in enumerate(data):
         dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
                    'var': 0,  # 方差
@@ -323,7 +324,7 @@ def interval_change(st=None, ed=None, database='mongodb'):
                 elif not cou:
                     cou.append((i, 0))
                 elif data[i][0].day != data[i - 1][0].day or (
-                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15') or i == lend_:
                     cou.append((i, 0))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -337,7 +338,7 @@ def interval_change(st=None, ed=None, database='mongodb'):
                 elif not cou:
                     cou.append((i, 1))
                 elif data[i][0].day != data[i - 1][0].day or (
-                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                        data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15') or i == lend_:
                     cou.append((i, 1))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -346,7 +347,7 @@ def interval_change(st=None, ed=None, database='mongodb'):
     return zts
 
 
-def interval_yi(st=None, ed=None, database='mongodb'):
+def interval_yinyang(st=None, ed=None, database='mongodb'):
     """
         以阴阳线分波
         :param st: 开始日期
@@ -409,6 +410,7 @@ def interval_yi(st=None, ed=None, database='mongodb'):
         str(data[st][0]), str(data[i][0]), _O, _H, _L, _C, _vol, _ma60g, _ma60r, zt, jc, _macdg, _macdr, ydxy,
         yddy)
 
+    lend_ = len(data) - 1
     for i, (d, o, h, l, c, v) in enumerate(data):
         dc.append({'ema_short': 0, 'ema_long': 0, 'diff': 0, 'dea': 0, 'macd': 0,
                    'var': 0,  # 方差
@@ -459,7 +461,7 @@ def interval_yi(st=None, ed=None, database='mongodb'):
             elif not cou:
                 cou.append((i, 0))
             elif data[i][0].day != data[i - 1][0].day or (
-                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15') or i == lend_:
                 cou.append((i, 0))
                 zts.append(get_cou())
                 yddy, ydxy = 0, 0
@@ -473,7 +475,7 @@ def interval_yi(st=None, ed=None, database='mongodb'):
             elif not cou:
                 cou.append((i, 1))
             elif data[i][0].day != data[i - 1][0].day or (
-                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15'):
+                    data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16] == '09:15') or i == lend_:
                 cou.append((i, 1))
                 zts.append(get_cou())
                 yddy, ydxy = 0, 0
