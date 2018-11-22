@@ -838,19 +838,17 @@ def main():
 
     zts = interval_ma60(sd, ed, database='sql')
 
+    # 写入 CSV 文件
     with open('a.csv', 'w') as f:
         for i in zts:
             f.write(','.join([str(j) for j in i]))
             f.write('\n')
 
+    # 写入 HTML
     d = [[i[0], i[2], i[5], i[4], i[3], i[6]] for i in zts[1:]]
     d = str(get_macd(d))  # 计算Macd
-
     parhead = str(list(zts[0]))  # 字段名称
-
     zts = str({i[0]: list(i) for i in zts[1:]})
-
-    # 写入HTML
     with open('qj.html', 'w', encoding='utf-8') as f:
         f.write(head)
         f.write(d)
