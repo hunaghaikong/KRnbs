@@ -5,6 +5,16 @@ import hsic
 
 # interval
 
+def caches(func):
+    data = {}
+    def wapper(*args,**kwargs):
+        key = f'{func.__name__}{args}{kwargs}'
+        if key not in data:
+            data[key] = func(*args,**kwargs)
+        return data[key]
+    return wapper
+
+@caches
 def interval_ma60(st=None, ed=None, database='mongodb'):
     """
     以60均线分波
@@ -53,9 +63,8 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
                    })
         if i == 1:
             ac = dc2[i - 1]
-            this_c = dc2[i]
-            dc[i]['ema_short'] = ac + (this_c - ac) * 2 / short
-            dc[i]['ema_long'] = ac + (this_c - ac) * 2 / long
+            dc[i]['ema_short'] = ac + (c - ac) * 2 / short
+            dc[i]['ema_long'] = ac + (c - ac) * 2 / long
             # dc[i]['ema_short'] = sum([(short-j)*da[i-j][4] for j in range(short)])/(3*short)
             # dc[i]['ema_long'] = sum([(long-j)*da[i-j][4] for j in range(long)])/(3*long)
             dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
@@ -63,9 +72,8 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
             dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
             # co = 1 if dc[i]['macd'] >= 0 else 0
         elif i > 1:
-            n_c = dc2[i]
-            dc[i]['ema_short'] = dc[i - 1]['ema_short'] * (short - 2) / short + n_c * 2 / short
-            dc[i]['ema_long'] = dc[i - 1]['ema_long'] * (long - 2) / long + n_c * 2 / long
+            dc[i]['ema_short'] = dc[i - 1]['ema_short'] * (short - 2) / short + c * 2 / short
+            dc[i]['ema_long'] = dc[i - 1]['ema_long'] * (long - 2) / long + c * 2 / long
             dc[i]['diff'] = dc[i]['ema_short'] - dc[i]['ema_long']
             dc[i]['dea'] = dc[i - 1]['dea'] * (phyd - 2) / phyd + dc[i]['diff'] * 2 / phyd
             dc[i]['macd'] = 2 * (dc[i]['diff'] - dc[i]['dea'])
@@ -92,7 +100,7 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 0))
-                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or i == lend_:
+                elif i == lend_:  # data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or
                     cou.append((i, 0))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -105,7 +113,7 @@ def interval_ma60(st=None, ed=None, database='mongodb'):
                     _vol = 0
                 elif not cou:
                     cou.append((i, 1))
-                elif data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or i == lend_:
+                elif i == lend_:  # data[i][0].day != data[i - 1][0].day or (data[i][0].day == data[i - 1][0].day and str(data[i][0])[11:16]=='09:15') or
                     cou.append((i, 1))
                     zts.append(get_cou())
                     yddy, ydxy = 0, 0
@@ -861,6 +869,10 @@ def main():
     # 打开HTML文件
     os.system('start qj.html')
 
+def test():
+    data = interval_ma60('2018-08-01', '2018-08-06', database='sql')
+    print(data[:10])
 
 if __name__ == '__main__':
-    main()
+    # main()
+    test()
