@@ -2,4 +2,5 @@
 util.py
 *.txt
 *.csv
+*.html
 __init__.py
