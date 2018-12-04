@@ -3,4 +3,5 @@ util.py
 *.txt
 *.csv
 *.html
+*.pkl
 __init__.py
