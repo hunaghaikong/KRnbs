@@ -1,5 +1,6 @@
 import os
 import datetime
+import pandas as pd
 
 import hsic
 
@@ -871,7 +872,10 @@ def main():
 
 def test():
     data = interval_ma60('2018-08-01', '2018-08-06', database='sql')
-    print(data[:10])
+    data_pd = pd.DataFrame(data[1:], columns=data[0])
+    data_pd.to_pickle('data.pkl')
+    print(data_pd.head())
+
 
 if __name__ == '__main__':
     # main()
